@@ -2,8 +2,11 @@
 
 ## Application Preview
 ![Financial Tracker Dashboard Screenshot](https://github.com/user-attachments/assets/b5f0a0f1-d752-47d3-a86d-8efb6dc4fad0)
+
 ![Transaction Screenshot](https://github.com/user-attachments/assets/725e95cd-18bf-4df7-946b-4fc33f6cee4a)
+
 ![Budgeting Screenshot](https://github.com/user-attachments/assets/eb5110f5-fcbb-48ff-b034-e6e377f9df07)
+
 ![Categories Screenshot](https://github.com/user-attachments/assets/21ef189f-219a-4f38-aad1-1772ac106109)
 
 This is a **full-stack web application** built using **React** (for the frontend user interface) and a **PHP/MySQL API** (for the backend). It is designed for comprehensive **personal finance management**.
