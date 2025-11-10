@@ -1,7 +1,7 @@
 # 💰 Personal Finance Tracker (React & PHP/MySQL)
 
 ## Application Preview
-![Financial Tracker Dashboard Screenshot] (https://github.com/user-attachments/assets/b5f0a0f1-d752-47d3-a86d-8efb6dc4fad0)
+![Financial Tracker Dashboard Screenshot](https://github.com/user-attachments/assets/b5f0a0f1-d752-47d3-a86d-8efb6dc4fad0)
 
 
 This is a **full-stack web application** built using **React** (for the frontend user interface) and a **PHP/MySQL API** (for the backend). It is designed for comprehensive **personal finance management**.
