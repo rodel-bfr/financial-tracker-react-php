@@ -4,6 +4,14 @@ import { Card, Form, Button, InputGroup, Row, Col, Alert, Modal, ListGroup, Badg
 // Import icons to provide clear visual cues for actions like add, edit, delete, and stop.
 import { BsPlus, BsPencil, BsTrash, BsStopCircle } from 'react-icons/bs';
 
+// Import all the functions we need for this file
+import {
+    addRecurringIncome, updateRecurringIncome, deleteRecurringIncome,
+    addRecurringExpense, updateRecurringExpense, deleteRecurringExpense,
+    addBudgetRule, updateBudgetRule, deleteBudgetRule
+} from '../services/apiService';
+
+
 // A helper utility function to format date strings into a human-readable format.
 const formatDate = (dateString) => {
   if (!dateString) return 'Forever'; // Handle cases where an end date is not set.
@@ -26,32 +34,27 @@ const ModernPagination = ({ totalPages, currentPage, onPageChange }) => {
 
 /**
  * ScheduleManager is a highly reusable component for managing any list of recurring items.
- * It handles its own state for filtering, pagination, and modal-based CRUD operations.
- * Its behavior is customized via props like 'title' and 'itemType'.
  */
 const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) => {
     // --- STATE MANAGEMENT ---
-    // State for the Add/Edit modal dialog.
+    // (State logic remains unchanged)
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
-    
-    // State for the filter controls.
-    const [statusFilter, setStatusFilter] = useState('active'); // 'all', 'active', 'inactive'
-    const [dateFromInput, setDateFromInput] = useState(''); // The value in the date input field
-    const [dateToInput, setDateToInput] = useState('');   // The value in the date input field
-    const [filterDateFrom, setFilterDateFrom] = useState(''); // The currently applied date filter
-    const [filterDateTo, setFilterDateTo] = useState('');     // The currently applied date filter
-
-    // State for pagination.
+    const [statusFilter, setStatusFilter] = useState('active');
+    const [dateFromInput, setDateFromInput] = useState('');
+    const [dateToInput, setDateToInput] = useState('');
+    const [filterDateFrom, setFilterDateFrom] = useState('');
+    const [filterDateTo, setFilterDateTo] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-
-    // The API endpoint is dynamically constructed based on the 'itemType' prop ('income' or 'expense').
-    // This is a key part of what makes this component reusable.
-    const API_ENDPOINT = `http://localhost/financial-tracker/recurring_${itemType}s.php`;
     
-    // Resets the form state, used when opening the modal to add a new item.
+    // Dynamically select the appropriate service functions based on itemType
+    const addItem = (itemType === 'income') ? addRecurringIncome : addRecurringExpense;
+    const updateItem = (itemType === 'income') ? updateRecurringIncome : updateRecurringExpense;
+    const deleteItem = (itemType === 'income') ? deleteRecurringIncome : deleteRecurringExpense;
+    
+    // Resets the form state...
     const resetForm = () => {
         setIsEditing(false);
         setCurrentItem({
@@ -63,36 +66,26 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
     };
     
     // --- DERIVED STATE & MEMORIZATION ---
-    // This useMemo hook calculates the list of items to display based on the active filters.
-    // This is a complex derivation and useMemo provides a significant performance boost by caching the result.
     const filteredItems = useMemo(() => {
         const today = new Date(); today.setHours(0, 0, 0, 0);
-
-        // 1. First, filter by the selected date range.
         const dateFiltered = (items || []).filter(item => {
             if (!filterDateFrom || !filterDateTo) return true;
             const scheduleStart = new Date(item.start_date + 'T00:00:00');
             const scheduleEnd = new Date(item.end_date + 'T00:00:00');
             const filterStart = new Date(filterDateFrom + 'T00:00:00');
             const filterEnd = new Date(filterDateTo + 'T00:00:00');
-            // Check for any overlap between the schedule's date range and the filter's date range.
             return scheduleStart <= filterEnd && scheduleEnd >= filterStart;
         });
-
-        // 2. Next, dynamically add a 'status' property to each item.
         const withStatus = dateFiltered.map(item => {
             const startDate = new Date(item.start_date + 'T00:00:00');
             const endDate = new Date(item.end_date + 'T00:00:00');
             const status = (today >= startDate && today <= endDate) ? 'active' : 'inactive';
             return { ...item, status };
         });
-
-        // 3. Finally, filter by the selected status ('all', 'active', 'inactive').
         if (statusFilter === 'all') return withStatus;
         return withStatus.filter(item => item.status === statusFilter);
-    }, [items, statusFilter, filterDateFrom, filterDateTo]); // Re-calculates only if these dependencies change.
+    }, [items, statusFilter, filterDateFrom, filterDateTo]);
 
-    // This second useMemo hook takes the filtered list and applies pagination to it.
     const { currentPagedItems, totalPages } = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
         const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -100,45 +93,57 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
             currentPagedItems: filteredItems.slice(indexOfFirstItem, indexOfLastItem),
             totalPages: Math.ceil(filteredItems.length / itemsPerPage)
         };
-    }, [filteredItems, currentPage, itemsPerPage]); // Depends on the result of the previous useMemo hook.
+    }, [filteredItems, currentPage, itemsPerPage]);
 
     // --- EVENT HANDLERS ---
     const handleApplyDateFilters = () => { setCurrentPage(1); setFilterDateFrom(dateFromInput); setFilterDateTo(dateToInput); };
     const handleResetDateFilters = () => { setCurrentPage(1); setFilterDateFrom(''); setFilterDateTo(''); setDateFromInput(''); setDateToInput(''); };
     
-    // Standard modal and form handlers for CRUD operations.
     const handleOpenModal = (item = null) => {
-        if (item) { // If an item is passed, we're editing.
-            const itemToEdit = {...item, contract_end_date: item.contract_end_date || ''}; // Ensure contract_end_date is not null
+        if (item) {
+            const itemToEdit = {...item, contract_end_date: item.contract_end_date || ''};
             setIsEditing(true);
             setCurrentItem(itemToEdit);
-        } else { // Otherwise, we're adding a new item.
+        } else {
             resetForm();
         }
         setShowModal(true);
     };
-
     const handleCloseModal = () => { setShowModal(false); resetForm(); };
     const handleFormChange = (e) => { setCurrentItem({...currentItem, [e.target.name]: e.target.value }); };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const method = isEditing ? 'PATCH' : 'POST';
-        fetch(API_ENDPOINT, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentItem) })
-        .then(res => res.json()).then(() => { onDataChanged(); handleCloseModal(); });
+
+        try {
+            if (isEditing) {
+                await updateItem(currentItem); // Use the dynamic update function
+            } else {
+                await addItem(currentItem); // Use the dynamic add function
+            }
+            onDataChanged();
+            handleCloseModal();
+        } catch (error) {
+            console.error(`Failed to save ${itemType} schedule:`, error);
+            alert(`Failed to save schedule. Please try again.`);
+        }
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (!window.confirm(`Are you sure you want to delete this schedule and all of its past transactions?`)) return;
-        fetch(API_ENDPOINT, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-        .then(res => res.json()).then(() => onDataChanged());
+
+        try {
+            await deleteItem(id); // Use the dynamic delete function
+            onDataChanged();
+        } catch (error) {
+            console.error(`Failed to delete ${itemType} schedule:`, error);
+            alert(`Failed to delete schedule. Please try again.`);
+        }
     };
 
-    // Special handler for the "Stop" button, which has specific business logic.
-    const handleStopClick = (item) => {
+    const handleStopClick = async (item) => {
         const today = new Date(); today.setHours(0,0,0,0);
         
-        // Business Rule: If an expense is under contract, it cannot be stopped early.
         if (itemType === 'expense' && item.contract_end_date) {
             const contractEndDate = new Date(item.contract_end_date + 'T00:00:00');
             if (contractEndDate > today) {
@@ -150,13 +155,17 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
         const formattedToday = formatDate(today.toISOString().slice(0, 10));
         if (window.confirm(`Are you sure you want to stop the "${item.description}" schedule?\nThis will set its end date to today, ${formattedToday}.`)) {
             const updatedItem = { ...item, end_date: today.toISOString().slice(0, 10) };
-            // Use PATCH to update the end date of the existing item.
-            fetch(API_ENDPOINT, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedItem) })
-            .then(res => res.json()).then(data => { if(data.rezultat === "OK") onDataChanged(); else alert(`Error: ${data.rezultat}`); });
+            
+            try {
+                await updateItem(updatedItem); // Use the dynamic update function
+                onDataChanged();
+            } catch (error) {
+                console.error(`Failed to stop ${itemType} schedule:`, error);
+                alert(`Failed to stop schedule. Please try again.`);
+            }
         }
     };
     
-    // Another derived value: get only the categories relevant to this component instance (income or expense).
     const relevantCategories = categories ? (itemType === 'income'
         ? categories.filter(c => c.type === 'Income')
         : categories.filter(c => ['Needs', 'Wants', 'Savings'].includes(c.type))) : [];
@@ -165,7 +174,7 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
     return (
         <Card className="h-100">
             <Card.Header as="h5" className="d-flex justify-content-between align-items-center">
-                {title} {/* Title is passed via props */}
+                {title}
                 <Button variant="success" size="sm" onClick={() => handleOpenModal()}><BsPlus /> Add Schedule</Button>
             </Card.Header>
             <Card.Body className="d-flex flex-column">
@@ -225,7 +234,6 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
                                 </div>
                             </div>
                             <small className="text-muted">From: {formatDate(item.start_date)} To: {formatDate(item.end_date)}</small>
-                            {/* Conditional rendering for the contract end date warning */}
                             {item.contract_end_date && <><br/><small className="text-danger fw-bold">Contract ends: {formatDate(item.contract_end_date)}</small></>}
                         </ListGroup.Item>
                     )) : <p className="text-muted text-center p-3">No schedules match the selected filters.</p>}
@@ -262,17 +270,16 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
  * BudgetRuleManager is another self-contained CRUD component for managing budget rules (e.g., 50/30/20).
  */
 const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
-    // Standard state for modal CRUD operations.
+    // (State logic remains unchanged)
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
-    // State to show notifications (e.g., validation errors) inside the modal.
     const [notification, setNotification] = useState({ show: false, message: '', variant: 'danger' });
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 2;
-    const API_ENDPOINT = `http://localhost/financial-tracker/budget.php`;
 
-    // Memorized pagination logic.
+    // const API_ENDPOINT = `http://localhost/financial-tracker/budget.php`;
+
     const { currentRules, totalPages } = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
         const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -289,7 +296,6 @@ const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
             needs_ratio: '50', wants_ratio: '30', savings_ratio: '20'
         });
     };
-
     const handleOpenModal = (item = null) => {
         if (item) {
             setIsEditing(true);
@@ -299,40 +305,47 @@ const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
         }
         setShowModal(true);
     };
-
     const handleCloseModal = () => { setShowModal(false); resetForm(); };
     const handleFormChange = (e) => setCurrentItem({ ...currentItem, [e.target.name]: e.target.value });
     
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (!window.confirm(`Are you sure you want to delete this budget rule?`)) return;
-        fetch(API_ENDPOINT, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-            .then(res => res.json()).then(() => onDataChanged());
+
+        try {
+            await deleteBudgetRule(id); // Use the service function
+            onDataChanged();
+        } catch (error) {
+            console.error("Failed to delete budget rule:", error);
+            alert("Failed to delete budget rule.");
+        }
     };
 
-    // Submit handler with custom client-side validation.
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         const { needs_ratio, wants_ratio, savings_ratio } = currentItem;
-        // Business Rule: Ensure the three ratios add up to exactly 100.
+        
         const total = parseInt(needs_ratio || 0) + parseInt(wants_ratio || 0) + parseInt(savings_ratio || 0);
         if (total !== 100) {
             setNotification({ show: true, message: 'Ratios must add up to 100%.', variant: 'danger' });
-            return; // Stop the submission if validation fails.
+            return;
         }
-
-        // Standard POST/PATCH logic.
-        const method = isEditing ? 'PATCH' : 'POST';
-        fetch(API_ENDPOINT, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(currentItem) })
-            .then(res => res.json()).then(data => {
-                if (data.rezultat === "OK") {
-                    onDataChanged();
-                    handleCloseModal();
-                } else {
-                    setNotification({ show: true, message: data.rezultat || 'An error occurred.', variant: 'danger' });
-                }
-            });
+        
+        try {
+            if (isEditing) {
+                await updateBudgetRule(currentItem); // Use service function
+            } else {
+                await addBudgetRule(currentItem); // Use service function
+            }
+            onDataChanged();
+            handleCloseModal();
+        } catch (error) {
+            console.error("Failed to save budget rule:", error);
+            const errorMsg = error.message || 'An error occurred.';
+            setNotification({ show: true, message: errorMsg, variant: 'danger' });
+        }
     };
     
+    // --- JSX RENDERING ---
     return (
         <Card>
             <Card.Header as="h5" className="d-flex justify-content-between align-items-center">
@@ -393,7 +406,6 @@ const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
 
 /**
  * BudgetSetup is the main page component that acts as a container or layout component.
- * Its primary job is to compose the other manager components into a single page.
  */
 const BudgetSetup = ({ settings, onSettingsSaved, categories, recurringIncomes, recurringExpenses }) => {
     // It receives all necessary data from the main App component via props.

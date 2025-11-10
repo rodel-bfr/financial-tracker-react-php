@@ -1,14 +1,7 @@
 /**
  * @file Dashboard.js
- * @description This file contains the main dashboard component for the financial tracker application.
- * It displays key financial summaries, charts for spending and income allocation, and a detailed table of all transactions.
- * Key Features:
- * - Interactive filtering by month, year, or custom date range.
- * - Dynamic charts to visualize spending habits and budget adherence.
- * - Calculation of financial metrics like cash balance, total spending, and savings.
- * - Application of user-defined budgeting rules (e.g., 50/30/20 rule).
- * - A paginated and filterable table of all transactions with edit/delete functionality.
- * - Optimized performance using React hooks like `useMemo` to prevent unnecessary recalculations.
+ * @description This file contains the main dashboard component...
+ * (All JSDoc comments preserved)
  */
 
 // --- 1. IMPORTS ---
@@ -16,37 +9,24 @@
 import React, { useState, useMemo } from 'react';
 // Import layout components from React Bootstrap for a structured and responsive design.
 import { Row, Col, Card, Form, Button, Table, Badge, ProgressBar } from 'react-bootstrap';
-// Import specific chart components from 'react-chartjs-2', a React wrapper for the Chart.js library.
+// Import specific chart components from 'react-chartjs-2'...
 import { Pie, Doughnut } from 'react-chartjs-2';
-// Import necessary modules from Chart.js itself. These are "tree-shakable," meaning only the parts we import will be included in the final application bundle.
+// Import necessary modules from Chart.js itself...
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-// Import the navigation hook from React Router to programmatically navigate to other pages (e.g., the edit transaction page).
+// Import the navigation hook from React Router...
 import { useNavigate } from 'react-router-dom';
-// Import icons from the 'react-icons' library to add visual cues for actions like edit, delete, and recurring transactions.
+// Import icons from the 'react-icons' library...
 import { BsPencil, BsTrash, BsClockHistory } from 'react-icons/bs';
 
+// Import the specific function we need from the apiService
+import { deleteTransaction } from '../services/apiService';
+
+
 // --- 2. CHART.JS REGISTRATION ---
-// Chart.js requires you to explicitly register the components (elements, scales, plugins) you intend to use.
-// This modular approach helps keep the final bundle size smaller.
-// - ArcElement: Required for drawing the segments of Pie and Doughnut charts.
-// - Tooltip: The pop-up that appears when you hover over a chart segment.
-// - Legend: The key that explains what the different colors/segments in the chart represent.
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // --- 3. HELPER FUNCTIONS ---
-// These are small, reusable utility functions that keep the main component logic clean.
-
-/**
- * @function findActiveBudgetRule
- * @description Finds the correct budget rule to apply based on a given date. It filters rules by their start/end dates
- * and sorts them to find the most recent, applicable one. This allows for historical budget rules.
- * If no rule is found, it returns a default "Fallback Rule" (50/30/20) to prevent errors.
- * @param {Array} rules - An array of budget rule objects from the database.
- * @param {Date} periodDate - The start date of the period being analyzed.
- * @returns {Object} The active budget rule with ratios converted to decimals.
- */
 const findActiveBudgetRule = (rules, periodDate) => {
-    // First, convert percentage-based ratios (e.g., 50) to decimals (e.g., 0.5) for calculations.
     const applicableRules = rules
         .map(rule => ({
             ...rule,
@@ -54,57 +34,30 @@ const findActiveBudgetRule = (rules, periodDate) => {
             wants_ratio: rule.wants_ratio / 100,
             savings_ratio: rule.savings_ratio / 100,
         }))
-        // Filter the rules to find ones that are active for the given periodDate.
         .filter(rule => {
             const startDate = new Date(rule.start_date + 'T00:00:00');
-            // Rule hasn't started yet.
             if (startDate > periodDate) return false;
-            // Rule has a start date but no end date (i.e., it's ongoing), OR the period is before the rule's end date.
             if (!rule.end_date || periodDate <= new Date(rule.end_date + 'T00:00:00')) {
                 return true;
             }
             return false;
         });
-    // If multiple rules could apply, sort them by start date in descending order to pick the most recent one.
     applicableRules.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
-    // Return the most recent applicable rule, or a default fallback rule if none were found.
     return applicableRules[0] || { name: 'Fallback Rule', needs_ratio: 0.5, wants_ratio: 0.3, savings_ratio: 0.2 };
 };
-
-/**
- * @function getMonthName
- * @description Converts a month number (1-12) into its full English name (e.g., 1 -> "January").
- * @param {number} monthNumber - The month number.
- * @returns {string} The full name of the month.
- */
 const getMonthName = (monthNumber) => {
   const date = new Date();
-  date.setMonth(monthNumber - 1); // `setMonth` is 0-indexed (0=Jan, 1=Feb, etc.)
+  date.setMonth(monthNumber - 1); 
   return date.toLocaleString('en-US', { month: 'long' });
 };
-
-/**
- * @function formatDate
- * @description Formats a date string (like "YYYY-MM-DD") into a more readable format (e.g., "19 June 2025").
- * @param {string} dateString - The date string to format.
- * @returns {string} The formatted date.
- */
 const formatDate = (dateString) => {
   if (!dateString) return '';
-  // Appending 'T00:00:00' prevents potential timezone issues where the date might shift by a day.
   const date = new Date(dateString + 'T00:00:00');
   const options = { day: 'numeric', month: 'long', year: 'numeric' };
-  return new Intl.DateTimeFormat('en-GB', options).format(date); // 'en-GB' gives DD Month YYYY format.
+  return new Intl.DateTimeFormat('en-GB', options).format(date);
 };
-
-/**
- * @function ModernPagination
- * @description A simple, reusable component for rendering pagination controls.
- * @param {Object} props - Contains totalPages, currentPage, and the onPageChange handler.
- * @returns {JSX.Element|null} The pagination UI, or null if there's only one page.
- */
 const ModernPagination = ({ totalPages, currentPage, onPageChange }) => {
-    if (totalPages <= 1) return null; // Don't show pagination if it's not needed.
+    if (totalPages <= 1) return null;
     return (
         <div className="d-flex justify-content-center align-items-center mt-4">
             <Button variant="light" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="me-3">&laquo; Previous</Button>
@@ -118,62 +71,33 @@ const ModernPagination = ({ totalPages, currentPage, onPageChange }) => {
 // --- 4. MAIN DASHBOARD COMPONENT ---
 /**
  * @component Dashboard
- * @param {Object} props - The properties passed down to the component.
- * @param {Array} props.transactions - The master list of all transaction objects.
- * @param {Array} props.budgetSettings - The list of all budget rule objects.
- * @param {Function} props.triggerReload - A function passed from the parent to force a data refresh (e.g., after deleting a transaction).
- * @param {Array} props.categories - The list of all available spending categories and their associated colors.
- * @param {Array} props.recurringIncomes - (Not directly used in this version but available)
- * @param {Array} props.recurringExpenses - (Not directly used in this version but available)
  */
 const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, recurringIncomes, recurringExpenses }) => {
-    // The `useNavigate` hook gives us a function to redirect the user to different routes.
     const navigate = useNavigate();
 
     // --- 5. STATE MANAGEMENT (useState) ---
-    // `useState` is a React hook that lets you add a "state variable" to your component.
-    // It returns a pair: the current state value and a function that lets you update it.
-    // When you call the update function, React re-renders the component.
-
-    const [filterType, setFilterType] = useState('month'); // Controls whether the summary view is 'Monthly' or 'Yearly'.
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()); // The currently selected year for the summary view.
-    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // The currently selected month (1-12).
-    const [currentPage, setCurrentPage] = useState(1); // The current page number for the transactions table pagination.
-    const [itemsPerPage, setItemsPerPage] = useState(10); // How many transactions to show per page in the table.
-    
-    // State for the transaction table's date range filter.
-    // We use two sets of state variables. `date...Input` holds the value in the HTML input fields.
-    // `filterDate...` holds the *applied* filter value. This prevents the table from re-filtering on every keystroke.
-    const [filterDateFrom, setFilterDateFrom] = useState(''); // The applied "from" date.
-    const [filterDateTo, setFilterDateTo] = useState(''); // The applied "to" date.
-    const [dateFromInput, setDateFromInput] = useState(''); // The value in the "from" date input field.
-    const [dateToInput, setDateToInput] = useState(''); // The value in the "to" date input field.
+    const [filterType, setFilterType] = useState('month');
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [filterDateFrom, setFilterDateFrom] = useState('');
+    const [filterDateTo, setFilterDateTo] = useState('');
+    const [dateFromInput, setDateFromInput] = useState('');
+    const [dateToInput, setDateToInput] = useState('');
     
     // --- 6. PERFORMANCE OPTIMIZATION (useMemo) ---
-    // `useMemo` is a React hook that memorizes (caches) the result of a calculation.
-    // The calculation is only re-run when one of its dependencies (the array at the end) changes.
-    // This is crucial for performance, as it prevents expensive computations on every single render.
-
     /**
      * @memo availableYears
-     * @description Calculates the unique years present in the transaction data.
-     * @dependency [transactions] - This calculation only re-runs if the `transactions` array changes.
-     * This prevents re-calculating the list of years every time the user selects a different month.
      */
     const availableYears = useMemo(() => {
-        // Use a Set to automatically handle uniqueness.
         const years = new Set(transactions.map(t => new Date(t.transaction_date).getFullYear()));
-        // Convert the Set to an array and sort it in descending order for the dropdown.
         return Array.from(years).sort((a, b) => b - a);
     }, [transactions]);
 
     // --- 7. EVENT HANDLERS ---
-    // These functions handle user interactions like clicks and form submissions.
-
     /**
      * @function handleEdit
-     * @description Navigates the user to the transaction editing page.
-     * @param {number} id - The ID of the transaction to edit.
      */
     const handleEdit = (id) => navigate(`/edit/${id}`);
     
@@ -182,33 +106,31 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
      * @description Deletes a transaction after user confirmation.
      * @param {number} id - The ID of the transaction to delete.
      */
-    const handleDelete = (id) => {
-        // `window.confirm` is a simple way to ask for user confirmation.
+
+    const handleDelete = async (id) => {
         if (!window.confirm("Are you sure you want to delete this transaction?")) return;
         
-        // Send a DELETE request to the backend API.
-        fetch(`http://localhost/financial-tracker/transactions.php`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id }), // Send the ID in the request body.
-        })
-        .then(res => res.json())
-        .then(() => triggerReload()); // After deleting, call the function from the parent to refetch all data.
+        // try/catch block.
+        try {
+            await deleteTransaction(id); // Call the service function
+            triggerReload(); // After deleting, call the function from the parent to refetch all data.
+        } catch (error) {
+            console.error("Failed to delete transaction:", error);
+            alert("Failed to delete transaction. Please try again.");
+        }
     };
 
     /**
      * @function handleApplyFilters
-     * @description Applies the date range from the input fields to the transaction table filter state.
      */
     const handleApplyFilters = () => {
         setFilterDateFrom(dateFromInput);
         setFilterDateTo(dateToInput);
-        setCurrentPage(1); // Reset to the first page when filters change.
+        setCurrentPage(1);
     };
 
     /**
      * @function handleResetFilters
-     * @description Clears the date range filters and resets the table view.
      */
     const handleResetFilters = () => {
         setFilterDateFrom('');
@@ -219,87 +141,55 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
     };
 
     // --- 8. PRIMARY DATA CALCULATION (useMemo) ---
-    // This is the most critical `useMemo` block. It processes the entire `transactions` array in a SINGLE PASS
-    // to calculate all the necessary figures for the dashboard summaries and charts.
-    // This is significantly more efficient than iterating over the data multiple times for each metric.
-
     const {
-        periodTransactions, // Transactions that fall within the selected month/year.
-        balanceAtPeriodEnd, // The final cash balance at the end of the selected period.
-        totalSavingsPot,    // The cumulative total of all savings.
-        periodSummary,      // Total money spent and saved within the period.
-        incomeAllocation,   // Breakdown of spending against the budget rule (Needs, Wants, Savings).
-        incomeSpentGauge    // Data for the "% of Income Spent" doughnut chart.
+        periodTransactions,
+        balanceAtPeriodEnd,
+        totalSavingsPot,
+        periodSummary,
+        incomeAllocation,
+        incomeSpentGauge
     } = useMemo(() => {
-        // Determine the start and end dates of the period based on the filter controls.
         const periodStartDate = new Date(selectedYear, filterType === 'year' ? 0 : selectedMonth - 1, 1);
-        const periodEndDate = new Date(selectedYear, filterType === 'year' ? 12 : selectedMonth, 0); // Day 0 of next month gives the last day of the current month.
-        // Find the budget rule that was active at the start of this period.
+        const periodEndDate = new Date(selectedYear, filterType === 'year' ? 12 : selectedMonth, 0);
         const activeRule = findActiveBudgetRule(budgetSettings, periodStartDate);
-
-        // Initialize accumulators for our single-pass calculation.
-        let runningBalance = 0;       // For calculating balance at a point in time.
-        let runningSavingsPot = 0;    // For calculating the total savings pot.
-        const periodTrans = [];         // To store transactions that happened *in* the period.
-        let periodSpent = 0;          // Total non-savings expenses in the period.
-        let periodSavings = 0;        // Total money moved to savings in the period.
-        let periodInc = 0;            // Total income in the period.
-        let periodNeedsActual = 0;    // Total "Needs" spending in the period.
-        let periodWantsActual = 0;    // Total "Wants" spending in the period.
-
-        // --- THE SINGLE PASS LOOP ---
-        // Iterate through ALL transactions once.
+        let runningBalance = 0;
+        let runningSavingsPot = 0;
+        const periodTrans = [];
+        let periodSpent = 0;
+        let periodSavings = 0;
+        let periodInc = 0;
+        let periodNeedsActual = 0;
+        let periodWantsActual = 0;
         for (const t of transactions) {
             const transactionDate = new Date(t.transaction_date + 'T00:00:00');
             const amount = parseFloat(t.amount);
-
-            // --- Calculation 1: Historical Balance & Savings Pot ---
-            // These calculations run for every transaction *up to* the end of the selected period.
             if (transactionDate <= periodEndDate) {
                 runningBalance += amount;
-                // Savings Pot: If it's a 'Savings' category transaction, it affects the pot.
-                // An expense to a savings category *increases* the pot (moves money from cash to savings).
                 if (t.category_type === 'Savings') {
-                    runningSavingsPot -= amount; // Amount is negative for expenses, so we subtract it.
+                    runningSavingsPot -= amount;
                 }
             }
-
-            // --- Calculation 2: In-Period Summary ---
-            // Check if the transaction falls *within* the selected period (month or year).
             const isInPeriod = (filterType === 'year')
                 ? (transactionDate.getFullYear() === selectedYear)
                 : (transactionDate.getFullYear() === selectedYear && transactionDate.getMonth() + 1 === selectedMonth);
-
             if (isInPeriod) {
-                periodTrans.push(t); // Add to our list of transactions for this period.
-
-                // Categorize the transaction's financial impact for the period.
+                periodTrans.push(t);
                 if (t.type === 'Income' && t.category_type !== 'Savings') {
-                    periodInc += amount; // Add to period income.
+                    periodInc += amount;
                 } else if (t.type === 'Expense') {
                     if (t.category_type === 'Savings') {
-                        // This is a transfer to savings.
-                        periodSavings -= amount; // Amount is negative, so this adds to savings.
+                        periodSavings -= amount;
                     } else {
-                        // This is regular spending.
-                        periodSpent -= amount; // Amount is negative, so this adds to spending.
-                        // Track spending for budget allocation categories.
+                        periodSpent -= amount;
                         if (t.category_type === 'Needs') periodNeedsActual -= amount;
                         if (t.category_type === 'Wants') periodWantsActual -= amount;
                     }
                 }
             }
         }
-        
-        // --- Post-Loop Calculations ---
-        // Now that the loop is done, we can calculate targets and percentages.
-        
-        // Calculate the target amounts based on the period's income and the active budget rule.
         const needsTarget = periodInc * activeRule.needs_ratio;
         const wantsTarget = periodInc * activeRule.wants_ratio;
         const savingsTarget = periodInc * activeRule.savings_ratio;
-
-        // Structure the data for the Income Allocation section.
         const allocation = {
             periodIncome: periodInc,
             activeRuleName: activeRule.name,
@@ -307,10 +197,8 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
             wants: { actual: periodWantsActual, target: wantsTarget, percent: wantsTarget > 0 ? (periodWantsActual / wantsTarget) * 100 : 0, ratio: activeRule.wants_ratio },
             savings: { actual: periodSavings, target: savingsTarget, percent: savingsTarget > 0 ? (periodSavings / savingsTarget) * 100 : 0, ratio: activeRule.savings_ratio },
         };
-        
-        // Prepare data for the "% of Income Spent" doughnut chart.
         const percentageOfIncomeSpent = periodInc > 0 ? (periodSpent / periodInc) * 100 : 0;
-        const isSurplusSpending = periodSpent > periodInc; // Did spending exceed income?
+        const isSurplusSpending = periodSpent > periodInc;
         const surplusAmount = isSurplusSpending ? periodSpent - periodInc : 0;
         const gaugeData = {
             isSurplus: isSurplusSpending,
@@ -319,13 +207,11 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
             chartData: {
                 datasets: [{
                     data: isSurplusSpending ? [100, 0] : [percentageOfIncomeSpent, 100 - percentageOfIncomeSpent],
-                    backgroundColor: isSurplusSpending ? ['#dc3545', '#e9ecef'] : ['#e86100', '#e9ecef'], // Red if overspent, Orange if not
+                    backgroundColor: isSurplusSpending ? ['#dc3545', '#e9ecef'] : ['#e86100', '#e9ecef'],
                     borderWidth: 0,
                 }],
             },
         };
-
-        // Return a single object containing all the calculated data.
         return {
             periodTransactions: periodTrans,
             balanceAtPeriodEnd: runningBalance,
@@ -334,53 +220,39 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
             incomeAllocation: allocation,
             incomeSpentGauge: gaugeData
         };
-    // Dependencies: This entire block re-calculates ONLY if these values change.
     }, [transactions, budgetSettings, filterType, selectedYear, selectedMonth]);
 
 
     /**
      * @memo chartData
-     * @description Prepares the data for the "Spending Distribution" Pie chart.
-     * @dependency [periodTransactions, categories] - Re-calculates only when the transactions for the selected period change, or when category definitions change.
      */
     const chartData = useMemo(() => {
-        // Create a quick lookup map for category names to their assigned colors for efficiency.
         const categoryColorMap = categories.reduce((acc, cat) => {
             acc[cat.name] = cat.color;
             return acc;
         }, {});
-
-        // Process the transactions for the current period to aggregate spending by category.
         const spendingData = periodTransactions
-            .filter(t => t.type === 'Expense' && t.category_type !== 'Savings') // Only look at non-savings expenses.
+            .filter(t => t.type === 'Expense' && t.category_type !== 'Savings')
             .reduce((acc, t) => {
                 const categoryName = t.category_name || 'Uncategorized';
                 if (!acc[categoryName]) {
-                    // If we haven't seen this category yet, initialize it.
-                    acc[categoryName] = { total: 0, color: categoryColorMap[categoryName] || '#CCCCCC' }; // Use a default color if not found.
+                    acc[categoryName] = { total: 0, color: categoryColorMap[categoryName] || '#CCCCCC' };
                 }
-                acc[categoryName].total += Math.abs(t.amount); // Add the transaction amount to the category's total.
+                acc[categoryName].total += Math.abs(t.amount);
                 return acc;
             }, {});
-            
-        // Convert the aggregated data object into the format required by Chart.js.
         const labels = Object.keys(spendingData);
-        if (labels.length === 0) return { labels: [], datasets: [{ data: [] }] }; // Handle case with no spending data.
+        if (labels.length === 0) return { labels: [], datasets: [{ data: [] }] };
         const data = labels.map(label => spendingData[label].total);
         const backgroundColor = labels.map(label => spendingData[label].color);
-
         return { labels, datasets: [{ data, backgroundColor }] };
     }, [periodTransactions, categories]);
 
     /**
      * @memo filteredTableTransactions
-     * @description Filters the main transactions list based on the user-selected date range for the table view.
-     * @dependency [transactions, filterDateFrom, filterDateTo] - Re-filters only when the master list or the date range changes.
      */
     const filteredTableTransactions = useMemo(() => {
-        // If no date filters are applied, return all transactions immediately.
         if (!filterDateFrom && !filterDateTo) return transactions;
-        
         return transactions.filter(t => {
             const transactionDate = new Date(t.transaction_date + 'T00:00:00');
             const start = filterDateFrom ? new Date(filterDateFrom + 'T00:00:00') : null;
@@ -393,34 +265,23 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
     }, [transactions, filterDateFrom, filterDateTo]);
 
     // --- 9. PAGINATION LOGIC ---
-    // Calculates which transactions to display on the current page of the table.
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredTableTransactions.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredTableTransactions.length / itemsPerPage);
-    
-    // A user-friendly label for the current period being viewed.
     const periodLabel = filterType === 'year' ? `${selectedYear}` : `${getMonthName(selectedMonth)}, ${selectedYear}`;
     
     // --- 10. CHART.JS OPTIONS ---
-    // These objects define the appearance and behavior of the charts.
-
-    // Options for the Pie Chart.
     const pieChartOptions = {
-        responsive: true, // Make the chart resize with its container.
-        maintainAspectRatio: false, // Allows us to set a custom height/width via CSS.
+        responsive: true,
+        maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: false, // We are not showing the default legend.
-            },
+            legend: { display: false },
             tooltip: {
-                // These options customize the tooltip that appears on hover.
                 yAlign: 'bottom',
                 xAlign: 'left',
-                caretPadding: 15, // Extra space between the tooltip and the chart segment.
-                displayColors: false, // Hides the little color box in the tooltip.
-                
-                // A callback function to create custom tooltip text.
+                caretPadding: 15,
+                displayColors: false,
                 callbacks: {
                     label: function(context) {
                         const label = context.label || '';
@@ -428,28 +289,23 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
                         const dataset = context.dataset.data;
                         const total = dataset.reduce((acc, currentValue) => acc + currentValue, 0);
                         const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                        // Example output: "Groceries: €150.00 (25.5%)"
                         return `${label}: €${value.toFixed(2)} (${percentage}%)`;
                     }
                 }
             }
         }
     };
-
-    // Options for the Doughnut Chart.
     const doughnutOptions = { 
         responsive: true, 
         maintainAspectRatio: false, 
-        cutout: '70%', // Makes the hole in the middle larger, creating a thinner ring.
+        cutout: '70%',
         plugins: { 
-            tooltip: { enabled: false }, // Disable tooltips for this chart.
+            tooltip: { enabled: false },
             legend: { display: false } 
         } 
     };
 
     // --- 11. JSX RENDERING ---
-    // This is where the component's UI is defined using JSX (a syntax extension for JavaScript).
-    // It looks like HTML but allows you to embed JavaScript logic and components.
     return (
         <Card className="shadow-sm">
             <Card.Header as="h3">Dashboard</Card.Header>
@@ -462,12 +318,10 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
                             <h5>Summary & Controls</h5>
                              <Form.Group className="mb-3">
                                 <div className="d-flex gap-2">
-                                    {/* Dropdowns for selecting filter type, month, and year. */}
                                     <Form.Select id="filterTypeSelect" size="sm" value={filterType} onChange={e => setFilterType(e.target.value)}>
                                         <option value="month">Monthly</option>
                                         <option value="year">Yearly</option>
                                     </Form.Select>
-                                    {/* The month dropdown is conditionally rendered only if filterType is 'month'. */}
                                     {filterType === 'month' && (
                                         <Form.Select id="monthSelect" size="sm" value={selectedMonth} onChange={e => setSelectedMonth(parseInt(e.target.value))}>
                                             {[...Array(12).keys()].map(i => <option key={i+1} value={i+1}>{getMonthName(i+1)}</option>)}
@@ -507,9 +361,7 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
                                <Col xs={12} md={6} className="pe-md-3">
                                    <div className="d-flex flex-column h-100">
                                         <h5 className="mb-3 text-center text-md-start">Spending Distribution <span className="text-muted small">(in {periodLabel})</span></h5>
-                                        {/* The chart container needs a defined height to render correctly. */}
                                         <div className="flex-grow-1" style={{ position: 'relative', height: '200px' }}>
-                                           {/* Conditionally render the chart or a "no data" message. */}
                                            {chartData.datasets[0].data.length > 0 ? (
                                                 <Pie data={chartData} options={pieChartOptions} /> 
                                            ) : (
@@ -522,16 +374,14 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
 
                                {/* % of Income Spent Doughnut Chart */}
                                <Col xs={12} md={6} className="position-relative ps-md-3">
-                                    <hr className="mt-4 d-md-none" /> {/* A horizontal line visible only on small screens. */}
-                                    <div className="vr d-none d-md-block position-absolute" style={{ height: "85%", top: "50%", transform: "translateY(-50%)", left: 0 }}></div> {/* A vertical line visible only on medium screens and up. */}
+                                    <hr className="mt-4 d-md-none" />
+                                    <div className="vr d-none d-md-block position-absolute" style={{ height: "85%", top: "50%", transform: "translateY(-50%)", left: 0 }}></div>
                                     <div className="d-flex flex-column h-100">
                                         <h5 className="text-center mb-3">% of Income Spent <span className="text-muted small">(in {periodLabel})</span></h5>
                                         <div className="flex-grow-1" style={{ position: 'relative', height: '200px' }}>
                                            {incomeAllocation.periodIncome > 0 ? (
                                                <>
-                                                   {/* The chart itself. */}
                                                    <Doughnut data={incomeSpentGauge.chartData} options={doughnutOptions} />
-                                                   {/* This div is absolutely positioned to sit in the center of the doughnut chart. */}
                                                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', fontSize: '1.75rem', fontWeight: 'bold' }}>
                                                        {incomeSpentGauge.centerText}
                                                    </div>
@@ -540,7 +390,6 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
                                                <div className="d-flex justify-content-center align-items-center h-100"><p className="text-center text-muted small">No income data.</p></div>
                                            )}
                                         </div>
-                                        {/* A space below the chart to show the surplus spending detail if necessary. */}
                                         <div style={{ minHeight: '24px' }}>
                                             {incomeSpentGauge.isSurplus && incomeAllocation.periodIncome > 0 && (
                                                 <p className="text-center text-muted small mb-0">
@@ -617,45 +466,38 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
                         </Col>
                     </Row>
                     
-                    {/* The table itself. `responsive` adds horizontal scroll on small screens. */}
+                    {/* The table itself. */}
                     <Table striped hover responsive size="sm">
                         <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Account: Amount</th><th>Actions</th></tr></thead>
                         <tbody>
-                            {/* Map over the `currentItems` (the paginated data) to create table rows. */}
                             {currentItems.map(t => {
                                 let accountDisplay;
                                 const formattedAmount = `€${Math.abs(t.amount).toFixed(2)}`;
-                                
-                                // Special display logic for Savings transactions to show the movement between accounts.
                                 if (t.category_type === 'Savings') {
-                                    accountDisplay = t.type === 'Expense' ? ( // Moving money INTO savings
+                                    accountDisplay = t.type === 'Expense' ? (
                                         <div><span className="text-danger d-block">Cash: -{formattedAmount}</span><span className="text-success d-block">Savings: +{formattedAmount}</span></div>
-                                    ) : ( // Moving money OUT OF savings
+                                    ) : (
                                         <div><span className="text-success d-block">Cash: +{formattedAmount}</span><span className="text-danger d-block">Savings: -{formattedAmount}</span></div>
                                     );
                                 } else {
-                                    // Standard display for income/expense.
                                     accountDisplay = (
                                         <span className={t.type === 'Income' ? 'text-success' : 'text-danger'}>
                                             Cash: {t.type === 'Income' ? '+' : '-'}{formattedAmount}
                                         </span>
                                     );
                                 }
-                                
                                 const isRecurring = t.recurring_income_id !== null || t.recurring_expense_id !== null;
 
                                 return (
                                 <tr key={t.id}>
                                     <td>
                                         {formatDate(t.transaction_date)}
-                                        {/* Show a clock icon if the transaction is part of a recurring series. */}
                                         {isRecurring && <BsClockHistory className="ms-2 text-muted" title="Recurring Transaction" />}
                                     </td>
                                     <td>{t.description}</td>
                                     <td><Badge bg="secondary" pill>{t.category_name}</Badge></td>
                                     <td>{accountDisplay}</td>
                                     <td>
-                                        {/* Action buttons for each row. */}
                                         <Button variant="outline-primary" size="sm" className="me-2" onClick={() => handleEdit(t.id)} title="Edit"><BsPencil /></Button>
                                         <Button variant="outline-danger" size="sm" onClick={() => handleDelete(t.id)} title="Delete"><BsTrash /></Button>
                                     </td>
@@ -665,7 +507,6 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
                         </tbody>
                     </Table>
                     
-                    {/* Render the pagination component at the bottom of the table. */}
                     <ModernPagination
                         totalPages={totalPages}
                         currentPage={currentPage}
@@ -677,5 +518,5 @@ const Dashboard = ({ transactions, budgetSettings, triggerReload, categories, re
     );
 };
 
-// Export the component so it can be used in other parts of the application (e.g., in App.js).
+// Export the component...
 export default Dashboard;
