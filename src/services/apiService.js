@@ -1,6 +1,6 @@
 // src/services/apiService.js
 
-// 1. Define the base URL once.
+// 1. Define the base URL for the API.
 const API_URL = "http://localhost/financial-tracker/";
 
 /**
