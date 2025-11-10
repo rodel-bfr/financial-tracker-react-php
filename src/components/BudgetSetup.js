@@ -34,6 +34,8 @@ const ModernPagination = ({ totalPages, currentPage, onPageChange }) => {
 
 /**
  * ScheduleManager is a highly reusable component for managing any list of recurring items.
+ * It handles its own state for filtering, pagination, and modal-based CRUD operations.
+ * Its behavior is customized via props like 'title' and 'itemType'.
  */
 const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) => {
     // --- STATE MANAGEMENT ---
@@ -41,11 +43,15 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
+
+    // State for the filter controls.
     const [statusFilter, setStatusFilter] = useState('active');
     const [dateFromInput, setDateFromInput] = useState('');
     const [dateToInput, setDateToInput] = useState('');
     const [filterDateFrom, setFilterDateFrom] = useState('');
     const [filterDateTo, setFilterDateTo] = useState('');
+
+    // State for pagination.
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     
@@ -54,7 +60,7 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
     const updateItem = (itemType === 'income') ? updateRecurringIncome : updateRecurringExpense;
     const deleteItem = (itemType === 'income') ? deleteRecurringIncome : deleteRecurringExpense;
     
-    // Resets the form state...
+    // Resets the form state, used when opening the modal to add a new item.
     const resetForm = () => {
         setIsEditing(false);
         setCurrentItem({
@@ -66,26 +72,36 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
     };
     
     // --- DERIVED STATE & MEMORIZATION ---
+    // This useMemo hook calculates the list of items to display based on the active filters.
+    // This is a complex derivation and useMemo provides a significant performance boost by caching the result.
     const filteredItems = useMemo(() => {
         const today = new Date(); today.setHours(0, 0, 0, 0);
+
+        // 1. First, filter by the selected date range.
         const dateFiltered = (items || []).filter(item => {
             if (!filterDateFrom || !filterDateTo) return true;
             const scheduleStart = new Date(item.start_date + 'T00:00:00');
             const scheduleEnd = new Date(item.end_date + 'T00:00:00');
             const filterStart = new Date(filterDateFrom + 'T00:00:00');
             const filterEnd = new Date(filterDateTo + 'T00:00:00');
+            // Check for any overlap between the schedule's date range and the filter's date range.
             return scheduleStart <= filterEnd && scheduleEnd >= filterStart;
         });
+
+        // 2. Next, dynamically add a 'status' property to each item.
         const withStatus = dateFiltered.map(item => {
             const startDate = new Date(item.start_date + 'T00:00:00');
             const endDate = new Date(item.end_date + 'T00:00:00');
             const status = (today >= startDate && today <= endDate) ? 'active' : 'inactive';
             return { ...item, status };
         });
+
+        // 3. Finally, filter by the selected status ('all', 'active', 'inactive').
         if (statusFilter === 'all') return withStatus;
         return withStatus.filter(item => item.status === statusFilter);
     }, [items, statusFilter, filterDateFrom, filterDateTo]);
 
+    // This second useMemo hook takes the filtered list and applies pagination to it.
     const { currentPagedItems, totalPages } = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
         const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -93,22 +109,27 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
             currentPagedItems: filteredItems.slice(indexOfFirstItem, indexOfLastItem),
             totalPages: Math.ceil(filteredItems.length / itemsPerPage)
         };
-    }, [filteredItems, currentPage, itemsPerPage]);
+    }, [filteredItems, currentPage, itemsPerPage]); // Depends on the result of the previous useMemo hook.
 
     // --- EVENT HANDLERS ---
     const handleApplyDateFilters = () => { setCurrentPage(1); setFilterDateFrom(dateFromInput); setFilterDateTo(dateToInput); };
     const handleResetDateFilters = () => { setCurrentPage(1); setFilterDateFrom(''); setFilterDateTo(''); setDateFromInput(''); setDateToInput(''); };
     
+    // Standard modal and form handlers for CRUD operations.
     const handleOpenModal = (item = null) => {
+        // If an item is passed, we're editing.
         if (item) {
             const itemToEdit = {...item, contract_end_date: item.contract_end_date || ''};
             setIsEditing(true);
             setCurrentItem(itemToEdit);
+        
+        // Otherwise, we're adding a new item.
         } else {
             resetForm();
         }
         setShowModal(true);
     };
+
     const handleCloseModal = () => { setShowModal(false); resetForm(); };
     const handleFormChange = (e) => { setCurrentItem({...currentItem, [e.target.name]: e.target.value }); };
 
@@ -141,9 +162,11 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
         }
     };
 
+    // Special handler for the "Stop" button, which has specific business logic.
     const handleStopClick = async (item) => {
         const today = new Date(); today.setHours(0,0,0,0);
         
+        // Business Rule: If an expense is under contract, it cannot be stopped early.
         if (itemType === 'expense' && item.contract_end_date) {
             const contractEndDate = new Date(item.contract_end_date + 'T00:00:00');
             if (contractEndDate > today) {
@@ -166,6 +189,7 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
         }
     };
     
+    // Another derived value: get only the categories relevant to this component instance (income or expense).
     const relevantCategories = categories ? (itemType === 'income'
         ? categories.filter(c => c.type === 'Income')
         : categories.filter(c => ['Needs', 'Wants', 'Savings'].includes(c.type))) : [];
@@ -270,16 +294,16 @@ const ScheduleManager = ({ title, itemType, categories, onDataChanged, items }) 
  * BudgetRuleManager is another self-contained CRUD component for managing budget rules (e.g., 50/30/20).
  */
 const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
-    // (State logic remains unchanged)
+    // Standard state for modal CRUD operations.
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
+    // State to show notifications (e.g., validation errors) inside the modal.
     const [notification, setNotification] = useState({ show: false, message: '', variant: 'danger' });
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 2;
 
-    // const API_ENDPOINT = `http://localhost/financial-tracker/budget.php`;
-
+    // Memorized pagination logic.
     const { currentRules, totalPages } = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
         const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -320,14 +344,15 @@ const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
         }
     };
 
+    // Submit handler with custom client-side validation.
     const handleSubmit = async (e) => {
         e.preventDefault();
         const { needs_ratio, wants_ratio, savings_ratio } = currentItem;
-        
+        // Business Rule: Ensure the three ratios add up to exactly 100.
         const total = parseInt(needs_ratio || 0) + parseInt(wants_ratio || 0) + parseInt(savings_ratio || 0);
         if (total !== 100) {
             setNotification({ show: true, message: 'Ratios must add up to 100%.', variant: 'danger' });
-            return;
+            return; // Stop the submission if validation fails.
         }
         
         try {
@@ -406,6 +431,7 @@ const BudgetRuleManager = ({ budgetRules, onDataChanged }) => {
 
 /**
  * BudgetSetup is the main page component that acts as a container or layout component.
+ * Its primary job is to compose the other manager components into a single page.
  */
 const BudgetSetup = ({ settings, onSettingsSaved, categories, recurringIncomes, recurringExpenses }) => {
     // It receives all necessary data from the main App component via props.

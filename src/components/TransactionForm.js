@@ -25,10 +25,13 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
   const { id: editId } = useParams(); // Get the 'id' from the URL, e.g., from '/edit/123'
   
   // A boolean flag to determine if the form is in "edit" mode or "add" mode.
+  // This is a clean way to drive conditional logic throughout the component.
   const isEditMode = Boolean(editId);
   
   // Find the full transaction data to be edited.
-  // useMemo is used for performance optimization. (Comment preserved)
+  // useMemo is used for performance optimization. It memoizes the result of the 'find' operation,
+  // so it only re-calculates when one of its dependencies (isEditMode, editId, transactions) changes.
+  // This is more efficient than running a 'find' on every single render.
   const initialData = useMemo(() => 
     isEditMode ? transactions.find(t => String(t.id) === String(editId)) : null,
     [isEditMode, editId, transactions]
@@ -37,7 +40,8 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
   // --- FORM STATE MANAGEMENT (useState) ---
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  // This state manages the four USER-FACING transaction types. (Comment preserved)
+  // This state manages the four USER-FACING transaction types. This is a UI abstraction layer
+  // to make the form more intuitive than the two simple backend types ('Income'/'Expense').
   const [transactionType, setTransactionType] = useState('expense');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10)); // Default to today
@@ -45,7 +49,7 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
   // --- SIDE EFFECTS (useEffect) ---
 
   // This useEffect hook is responsible for populating the form fields when in "edit" mode.
-  // (All comments preserved)
+  // It runs whenever isEditMode or initialData changes.
   useEffect(() => {
     if (isEditMode && initialData) {
       // Set the form fields with the data from the transaction being edited.
@@ -54,19 +58,22 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
       setCategoryId(initialData.category_id);
       setDate(initialData.transaction_date);
 
-      // This logic translates the two backend types... (Comment preserved)
+      // This logic translates the two backend types ('Income'/'Expense' combined with category_type)
+      // back into one of the four user-friendly UI types for the dropdown.
       if (initialData.type === 'Income') {
         setTransactionType(initialData.category_type === 'Savings' ? 'withdrawal' : 'income');
       } else { // type is 'Expense'
         setTransactionType(initialData.category_type === 'Savings' ? 'transfer' : 'expense');
       }
     }
-  }, [isEditMode, initialData]);
+  }, [isEditMode, initialData]); // Dependencies: The effect re-runs if these values change.
 
   // This useMemo hook creates a dynamically filtered list of categories.
+  // It re-runs ONLY when the main 'categories' list or the selected 'transactionType' changes.
+  // This is a great example of deriving state for the UI without creating more state variables
   const filteredCategories = useMemo(() => {
     if (!categories) return [];
-    // The switch statement returns a different subset of categories...
+    // The switch statement returns a different subset of categories based on the transaction type.
     switch (transactionType) {
         case 'income':
             return categories.filter(c => c.type === 'Income');
@@ -81,6 +88,8 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
   }, [categories, transactionType]);
 
   // This useEffect hook ensures data integrity.
+  // If the user changes the transaction type, the category list changes. If the previously selected
+  // category is no longer valid, this resets the category selection to prevent an invalid submission.
   useEffect(() => {
       if (!filteredCategories.some(c => c.id === categoryId)) {
           setCategoryId('');
@@ -89,16 +98,17 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
 
 
   // --- FORM SUBMISSION ---
-  // 2. Convert handleSubmit to an 'async' function to use 'await'
   const handleSubmit = async (e) => {
-    // Prevent the default browser behavior...
+    // Prevent the default browser behavior of a full-page reload on form submission.
     e.preventDefault();
     if (!description || !amount || !date || !categoryId) {
       alert('Please fill all fields');
       return;
     }
 
-    // This logic is a crucial responsibility of the UI layer...
+    // This logic is a crucial responsibility of the UI layer. It translates the user-friendly
+    // 4-type system ('income', 'expense', 'transfer', 'withdrawal') into the strict 2-type system
+    // that the backend API expects ('Income'/'Expense' with a +/- amount).
     let finalType;
     let finalAmount;
 
@@ -111,11 +121,11 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
             finalType = 'Expense';
             finalAmount = -Math.abs(parseFloat(amount));
             break;
-        case 'transfer': // A transfer TO savings is an EXPENSE...
+        case 'transfer': // A transfer TO savings is an EXPENSE from the cash perspective.
             finalType = 'Expense';
             finalAmount = -Math.abs(parseFloat(amount));
             break;
-        case 'withdrawal': // A withdrawal FROM savings is an INCOME...
+        case 'withdrawal': // A withdrawal FROM savings is an INCOME to the cash perspective.
             finalType = 'Income';
             finalAmount = Math.abs(parseFloat(amount));
             break;
@@ -132,8 +142,7 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
       transaction_date: date
     };
 
-    // 3. --- REPLACED BLOCK ---
-    // We now use a try/catch block.
+    // Use try-catch to handle potential errors during the async API calls.
     try {
       if (isEditMode) {
         // For updates, we pass the full object including the id.
@@ -157,6 +166,7 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
   // --- JSX RENDERING ---
   return (
     <Card className="shadow-sm">
+      {/* The component's title changes based on whether it's in edit mode. */}
       <Card.Header as="h3">{isEditMode ? 'Edit Transaction' : 'Add New Transaction'}</Card.Header>
       <Card.Body>
         <Form onSubmit={handleSubmit}>
@@ -167,6 +177,7 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
             </Form.Group>
             <Form.Group as={Col} controlId="formType">
               <Form.Label>Type</Form.Label>
+              {/* This dropdown presents the 4 user-friendly transaction types. */}
               <Form.Select value={transactionType} onChange={(e) => setTransactionType(e.target.value)}>
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
@@ -190,11 +201,13 @@ const TransactionForm = ({ categories, onFormSubmit, transactions }) => {
               <Form.Label>Category</Form.Label>
               <Form.Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
                 <option value="">Select a category...</option>
+                {/* The options in this dropdown are dynamically rendered from the 'filteredCategories' list. */}
                 {filteredCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Form.Select>
             </Form.Group>
           </Row>
-          
+
+          {/* The button text also changes based on whether it's in edit mode. */}
           <Button variant="primary" type="submit" className="mt-3">
             {isEditMode ? 'Save Changes' : 'Add Transaction'}
           </Button>

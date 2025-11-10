@@ -5,12 +5,15 @@ import { Card, Form, Button, Row, Col, Badge, Table, Modal } from 'react-bootstr
 import { BsPencil, BsTrash } from 'react-icons/bs';
 
 // Import the specific functions we need from the apiService
-// The path is '../services...' because we are in the 'components' folder.
 import { addCategory, deleteCategory, updateCategory } from '../services/apiService';
 
 /**
  * A reusable pagination component. It's kept separate for clarity and reusability.
- * (All comments preserved)
+ * It handles its own rendering logic based on the props it receives.
+ * @param {object} props - Component props.
+ * @param {number} props.totalPages - The total number of pages.
+ * @param {number} props.currentPage - The currently active page.
+ * @param {Function} props.onPageChange - A callback function to be called when the page changes.
  */
 const ModernPagination = ({ totalPages, currentPage, onPageChange }) => {
     // Don't render the component if there's only one page or less.
@@ -33,16 +36,26 @@ const ModernPagination = ({ totalPages, currentPage, onPageChange }) => {
 
 /**
  * The Categories component allows users to manage their transaction categories.
+ * It provides functionality to add, view, edit, and delete categories.
+ * @param {object} props - Component props.
+ * @param {Array} props.categories - The full list of categories passed down from App.js.
+ * @param {Function} props.onDataChanged - The callback function to trigger a data reload in App.js.
  */
 const Categories = ({ categories, onDataChanged }) => {
     // --- STATE MANAGEMENT (useState) ---
+    // State for the "Add New Category" form fields (a controlled component).
     const [newCategory, setNewCategory] = useState({ name: '', description: '', color: '#CCCCCC', type: 'Wants' });
+    // State to hold the category object that is currently being edited. It's null when not editing.
     const [editingCategory, setEditingCategory] = useState(null);
+    // State to control the visibility of the edit modal dialog.
     const [showEditModal, setShowEditModal] = useState(false);
+    // State for managing the table's pagination.
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // --- DERIVED STATE & MEMOIZATION (useMemo) ---
+    // This hook calculates which items to display on the current page.
+    // useMemo ensures this calculation only re-runs when its dependencies change, improving performance.
     const { currentItems, totalPages } = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
         const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -55,7 +68,7 @@ const Categories = ({ categories, onDataChanged }) => {
 
     // Handles the submission of the "Add New Category" form.
     const handleAddCategory = async (e) => {
-        e.preventDefault(); 
+        e.preventDefault(); // Prevent default form submission which causes a page reload.
         if (!newCategory.name) { alert('Please enter a category name.'); return; }
         
         try {
@@ -75,6 +88,7 @@ const Categories = ({ categories, onDataChanged }) => {
 
     // Handles the click of a "Delete" button for a category.
     const handleDeleteCategory = async (id) => {
+        // Use window.confirm as a simple way to get user confirmation before a destructive action.
         if (!window.confirm("Are you sure you want to delete this category? This cannot be undone.")) return;
         
         try {
@@ -92,14 +106,15 @@ const Categories = ({ categories, onDataChanged }) => {
 
     // --- MODAL HANDLING LOGIC ---
 
+    // This function is called when the user clicks an "Edit" button.
     const handleShowEditModal = (category) => {
-        setEditingCategory(category);
-        setShowEditModal(true);
+        setEditingCategory(category); // Store the category object to be edited in state.
+        setShowEditModal(true);       // Set the state to true to show .
     };
 
     const handleCloseEditModal = () => {
-        setShowEditModal(false);
-        setEditingCategory(null);
+        setShowEditModal(false);    // Hide the modal.
+        setEditingCategory(null);   // Clear the editing state.
     };
 
     // Handles the submission of the form inside the "Edit" modal.
@@ -132,7 +147,9 @@ const Categories = ({ categories, onDataChanged }) => {
                         <Card.Body>
                             <Form onSubmit={handleAddCategory}>
                                 <Row className="align-items-end g-3">
-                                    {/* Each form control is a "controlled component"... */}
+                                    {/* Each form control is a "controlled component". Its value is tied to state,
+                                        and its onChange handler updates that state. The spread syntax `{...newCategory}`
+                                        is used to update one field while keeping the others intact. */}
                                     <Col md={3}><Form.Group><Form.Label htmlFor="new-cat-name">Name</Form.Label><Form.Control id="new-cat-name" type="text" placeholder="e.g., Groceries" value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} required /></Form.Group></Col>
                                     <Col md={4}><Form.Group><Form.Label htmlFor="new-cat-desc">Description</Form.Label><Form.Control id="new-cat-desc" type="text" placeholder="e.g., Weekly food shopping" value={newCategory.description} onChange={e => setNewCategory({...newCategory, description: e.target.value})} /></Form.Group></Col>
                                     <Col md={2}><Form.Group><Form.Label htmlFor="new-cat-type">Type</Form.Label><Form.Select id="new-cat-type" value={newCategory.type} onChange={e => setNewCategory({...newCategory, type: e.target.value})}><option value="Wants">Wants</option><option value="Needs">Needs</option><option value="Savings">Savings</option><option value="Income">Income</option></Form.Select></Form.Group></Col>
@@ -166,17 +183,18 @@ const Categories = ({ categories, onDataChanged }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {/* Map over the 'currentItems'... */}
+                                    {/* Map over the 'currentItems' (the paginated list) to create a table row for each category. */}
+                                    {/* The 'key' prop is essential for React to efficiently update the list. */}
                                     {currentItems.map(cat => (
                                         <tr key={cat.id}>
                                             <td>{cat.name}</td>
                                             <td><div title={cat.color} style={{ width: '25px', height: '25px', backgroundColor: cat.color || '#CCCCCC', border: '1px solid #ddd', borderRadius: '3px', margin: 'auto' }}></div></td>
                                             <td className="text-muted">{cat.description}</td>
                                             <td><Badge bg="secondary" pill>{cat.type}</Badge></td>
-                                            {/* Example of conditional rendering... */}
+                                            {/* Example of conditional rendering inside the table */}
                                             <td>{['Needs', 'Wants', 'Savings'].includes(cat.type) ? cat.type : 'N/A'}</td>
                                             <td>
-                                                {/* The onClick handlers... */}
+                                                {/* The onClick handlers call the appropriate function with the current category's data. */}
                                                 <Button variant="outline-primary" size="sm" className="me-2" onClick={() => handleShowEditModal(cat)} title="Edit"><BsPencil /></Button>
                                                 <Button variant="outline-danger" size="sm" onClick={() => handleDeleteCategory(cat.id)} title="Delete"><BsTrash /></Button>
                                             </td>
@@ -191,13 +209,14 @@ const Categories = ({ categories, onDataChanged }) => {
                 </Col>
             </Row>
 
-            {/* The Edit Modal... */}
+            {/* The Edit Modal is only rendered to the DOM when 'editingCategory' is not null.
+                This is an efficient way to handle modals, avoiding an empty modal in the DOM at all times.  */}
             {editingCategory && (
                 <Modal show={showEditModal} onHide={handleCloseEditModal} centered>
                     <Modal.Header closeButton><Modal.Title>Edit Category</Modal.Title></Modal.Header>
                     <Modal.Body>
                         <Form onSubmit={handleUpdateCategory}>
-                            {/* The form fields in the modal... */}
+                            {/* The form fields in the modal are controlled by the 'editingCategory' state object. */}
                             <Form.Group className="mb-3"><Form.Label htmlFor="edit-cat-name">Name</Form.Label><Form.Control id="edit-cat-name" type="text" value={editingCategory.name} onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})} required /></Form.Group>
                             <Form.Group className="mb-3"><Form.Label htmlFor="edit-cat-desc">Description</Form.Label><Form.Control id="edit-cat-desc" as="textarea" rows={2} value={editingCategory.description || ''} onChange={(e) => setEditingCategory({...editingCategory, description: e.target.value})} /></Form.Group>
                             <Row>
