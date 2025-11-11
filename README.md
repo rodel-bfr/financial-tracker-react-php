@@ -25,6 +25,12 @@ The application allows users to monitor their income, expenses, and savings thro
 ![Budgeting Screenshot](https://github.com/user-attachments/assets/eb5110f5-fcbb-48ff-b034-e6e377f9df07)
 ![Categories Screenshot](https://github.com/user-attachments/assets/21ef189f-219a-4f38-aad1-1772ac106109)
 
+## 💾 Database Schema (ERD)
+
+Here is the Entity Relationship Diagram (ERD) for the database, showing the table structures and relationships.
+
+![Database ERD for Financial Tracker](https://github.com/user-attachments/assets/8a4ca646-7a67-4b80-a300-3db85e0007b6)
+
 ## 🚀 Local Setup Guide
 
 To run this project locally, you need a running web server (like XAMPP/MAMP) and Node.js installed.
