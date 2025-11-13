@@ -19,19 +19,30 @@
     exit;
   }
 
+// --- DOTENV & COMPOSER AUTOLOAD ---
+  // This line includes the Composer autoloader, which makes the Dotenv library available.
+  require_once __DIR__ . '/vendor/autoload.php';
+  
+  // This tells Dotenv to look for the .env file in the current directory (your '/api' folder)
+  $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+  $dotenv->load();
+
   // --- DATABASE CONNECTION ---
-  $server = "localhost"; // Database server address
-  $user = "root";        // Default XAMPP username
-  $parola = "";          // Default XAMPP password is empty
-  $db = "financial_tracker"; // The name of the database
+  // We read from the $_ENV superglobal
+  $server = $_ENV['DB_HOST'];        
+  $user = $_ENV['DB_USER'];        
+  $parola = $_ENV['DB_PASS'];      
+  $db = $_ENV['DB_NAME'];
 
   // Establish the connection to the MySQL database.
   $cnx = mysqli_connect($server, $user, $parola, $db);
 
-  // Check if the connection was successful.
+// Check if the connection was successful
   if (mysqli_connect_errno()) {
-      // If the connection fails, stop the script and display an error message.
-      die("Conectare la MySQL nereusita: " . mysqli_connect_error());
+      // Log the real error for your records (good practice)
+      error_log("MySQL connection failed: " . mysqli_connect_error());
+      // Show a generic error to the user
+      die("A database connection error occurred. Please try again later.");
   };
 
   // --- GLOBAL SETTINGS ---

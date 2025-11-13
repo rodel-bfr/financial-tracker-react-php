@@ -4,6 +4,8 @@ This is a **full-stack web application** built using **React** (for the frontend
 
 The application allows users to monitor their income, expenses, and savings through intuitive charts and a powerful transaction log.
 
+---
+
 ### Key Features:
 
 * **Dynamic Budgeting:** Supports custom budget rules, such as the **50/30/20 rule**, helping users balance **Needs**, **Wants**, and **Savings**.
@@ -11,6 +13,8 @@ The application allows users to monitor their income, expenses, and savings thro
 * **Customizable Categories:** Users can define and edit their own spending categories and allocation types.
 * **Visual Analytics:** Intuitive graphs (Pie and Doughnut charts) provide a visual breakdown of spending habits and budget adherence.
 * **Transaction Management:** A filterable and paginated table for managing all past and present transactions, including edit and delete functionality.
+
+---
 
 ## 🛠️ Tech Stack
 
@@ -25,6 +29,8 @@ The application allows users to monitor their income, expenses, and savings thro
 ![Budgeting](https://github.com/user-attachments/assets/eb5110f5-fcbb-48ff-b034-e6e377f9df07)
 ![Categories](https://github.com/user-attachments/assets/21ef189f-219a-4f38-aad1-1772ac106109)
 
+---
+
 ## 💾 Database Schema (ERD)
 
 Here is the Entity Relationship Diagram (ERD) for the database, showing the table structures and relationships.
@@ -33,27 +39,46 @@ Here is the Entity Relationship Diagram (ERD) for the database, showing the tabl
 
 ## 🚀 Local Setup Guide
 
-To run this project locally, you need a running web server (like XAMPP/MAMP) and Node.js installed.
+---
+
+To run this project locally, you need a running web server (like XAMPP/MAMP), **Composer**, and **Node.js** installed.
 
 ### 1. Backend (PHP API & Database)
 
-1.  Place the contents of the **`/api`** folder inside your XAMPP web root (e.g., `C:\xampp\htdocs\financial-tracker`).
-2.  Start the **Apache** and **MySQL** services in your XAMPP Control Panel.
-3.  Go to `http://localhost/phpmyadmin` and create a new database named **`financial_tracker`**.
-4.  Select the new database and go to the **"Import"** tab. Import the `database.sql` file (included in the `/api` folder) to set up all the tables.
+1.  **Copy API Files:** Place the contents of the **`/api`** folder inside your XAMPP web root (e.g., `C:\xampp\htdocs\financial-tracker-api`).
+
+2.  **Start Server:** Start the **Apache** and **MySQL** services in your XAMPP Control Panel.
+
+3.  **Install PHP Dependencies:** Open your terminal and navigate *inside* the API folder.
+    ```bash
+    cd C:\xampp\htdocs\financial-tracker-api
+    composer install
+    ```
+
+4.  **Create Environment File:** In that same `/api` folder, create a new file named `.env`. Copy the following lines into it and fill in your database details (this will be `root` and a blank password for a default XAMPP setup).
+    ```
+    DB_HOST=localhost
+    DB_USER=root
+    DB_PASS=
+    DB_NAME=financial_tracker
+    ```
+
+5.  **Create Database:** Go to `http://localhost/phpmyadmin` and create a new database named **`financial_tracker`**.
+
+6.  **Import Schema:** Select the new database and go to the **"Import"** tab. Import the `database.sql` file (included in the `/api` folder) to set up all the tables and import the sample data.
 
 ### 2. Frontend (React)
 
-1.  Open your terminal/command prompt and navigate to the project root:
+1.  **Navigate to Project Root:** Open a *separate* terminal window and navigate to the project's root folder (the one containing the React app, *not* the `/api` folder).
     ```bash
-    cd financial-tracker-repo
+    cd path-to-your/financial-tracker-react-php
     ```
-2.  Install dependencies:
+2.  **Install Node.js Dependencies:**
     ```bash
     npm install
     ```
-3.  Start the development server:
+3.  **Start the React App:**
     ```bash
     npm start
     ```
-4.  Access the app at `http://localhost:3000` (or the port indicated in the console).
+4.  **Access the App:** Open your browser to `http://localhost:3000`. The React app will automatically connect to your PHP API running on `localhost`.
