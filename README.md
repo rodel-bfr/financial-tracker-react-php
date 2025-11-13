@@ -6,7 +6,7 @@ The application allows users to monitor their income, expenses, and savings thro
 
 ---
 
-### Key Features:
+## ✨ Key Features
 
 * **Dynamic Budgeting:** Supports custom budget rules, such as the **50/30/20 rule**, helping users balance **Needs**, **Wants**, and **Savings**.
 * **Recurring Transactions:** Enables the scheduling of recurring income (e.g., salary) and recurring expenses (e.g., subscriptions) for accurate forecasting.
@@ -21,6 +21,8 @@ The application allows users to monitor their income, expenses, and savings thro
 * **Frontend:** React, React Router, Chart.js, React-Bootstrap
 * **Backend:** PHP, MySQL
 * **Development:** Git, XAMPP (Apache)
+
+---
 
 ## 📸 Application Preview
 
@@ -37,9 +39,9 @@ Here is the Entity Relationship Diagram (ERD) for the database, showing the tabl
 
 ![Database ERD](https://github.com/user-attachments/assets/8a4ca646-7a67-4b80-a300-3db85e0007b6)
 
-## 🚀 Local Setup Guide
-
 ---
+
+## 🚀 Local Setup Guide
 
 To run this project locally, you need a running web server (like XAMPP/MAMP), **Composer**, and **Node.js** installed.
 
