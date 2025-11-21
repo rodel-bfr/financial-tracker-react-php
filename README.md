@@ -43,9 +43,21 @@ Here is the Entity Relationship Diagram (ERD) for the database, showing the tabl
 
 ## 🚀 Local Setup Guide
 
-To run this project locally, you need a running web server (like XAMPP/MAMP), **Composer**, and **Node.js** installed.
+### 📋 Prerequisites
+Before you begin, ensure you have the following installed on your local machine:
+* **[Node.js](https://nodejs.org/)** (v14 or higher) – To run the React frontend.
+* **[XAMPP](https://www.apachefriends.org/)** (or MAMP/WAMP) – To provide the Apache server and MySQL database.
+* **[Composer](https://getcomposer.org/)** – To manage PHP dependencies.
+* **[Git](https://git-scm.com/)** – To clone the repository.
 
-### 1. Backend (PHP API & Database)
+### 🔧 Installation
+
+### 1.  **Clone the repository:**
+```bash
+git clone https://github.com/rodel-bfr/financial-tracker-react-php.git
+```
+
+### 2. **Setup Backend (PHP API & Database)**
 
 1.  **Copy API Files:** Place the contents of the **`/api`** folder inside your XAMPP web root (e.g., `C:\xampp\htdocs\financial-tracker-api`).
 
@@ -69,7 +81,7 @@ To run this project locally, you need a running web server (like XAMPP/MAMP), **
 
 6.  **Import Schema:** Select the new database and go to the **"Import"** tab. Import the `database.sql` file (included in the `/api` folder) to set up all the tables and import the sample data.
 
-### 2. Frontend (React)
+### 3. Frontend (React)
 
 1.  **Navigate to Project Root:** Open a *separate* terminal window and navigate to the project's root folder (the one containing the React app, *not* the `/api` folder).
     ```bash
